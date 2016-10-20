@@ -5,31 +5,33 @@
  * @link sroze.io
  * @link github.com/sroze
  */
-(function(){
+define(function(require) {
+     'use strict';
+     var Backbone = require('backbone');
     /**
      * TemplateManager object provides an async template loading and caching
      * system.
-     * 
+     *
      */
     Backbone.TemplateManager = {
         // Already loaded templates
         templates: {},
-        
+
         // Base loading template URL
         baseUrl: '/templates/{name}',
-        
+
         // Templates that are currently loading
         loadings: new Array(),
-        
+
         // Save current rendered views
         currentViews: {},
-        
+
         // Waiting defereds
         queues: {},
-        
+
         set: function (name, data) {
             this.templates[name] = data;
-            
+
             // Resolve queues
             var queue = this.queues[name];
             if (queue) {
@@ -39,7 +41,7 @@
             }
             this.queues[name] = new Array();
         },
-        
+
         notLoading: function (name) {
             var index = this.loadings.indexOf(name);
             if (index != -1) {
@@ -48,15 +50,15 @@
                 return this.loadings.push.apply(this, rest);
             }
         },
-        
-        get: function(name, context) 
+
+        get: function(name, context)
         {
             if (name == null) {
                 throw "Template name must be defined";
             }
-            
+
             var dfd = $.Deferred();
-            
+
             // If the template is already loaded, resolve immediately
             if (this.templates[name]) {
                 dfd.resolveWith(context, [this.templates[name]]);
@@ -66,19 +68,19 @@
                     this.queues[name] = new Array();
                 }
                 this.queues[name].push({dfd: dfd, context: context});
-                
+
                 // Is this template loading ?
                 if (this.loadings.indexOf(name) == -1) {
                     this.loadings.push(name);
-                    
+
                     // Compute template URL
                     var url = Backbone.TemplateManager.baseUrl.replace('{name}', name);
-                
+
                     // Start template loading
                     $.get(url, function (data) {
                         // Compute template
                         var template = _.template(data);
-                        
+
                         // Save template in "cache"
                         Backbone.TemplateManager.notLoading(name);
                         Backbone.TemplateManager.set(name, template);
@@ -87,7 +89,7 @@
                     });
                 }
             }
-            
+
             return dfd.promise();
         }
     };
@@ -95,15 +97,15 @@
     /**
      * Lmc.View improves the backbone model view, with async template
      * loading for instance.
-     * 
+     *
      */
     Backbone.DeferedView = Backbone.View.extend({
         templateName: null,
         container: null,
         loadedCountDown: 1,
-        
+
         deferedRender: function(event) {
-            // Fetch the template from the TemplateManager and when complete 
+            // Fetch the template from the TemplateManager and when complete
             // call the normal render method
             var tn = this.templateName;
             var render = $.when(
@@ -112,7 +114,7 @@
                 this.template = resultTemplate;
                 this.render();
                 this.isLoaded(true);
-                
+
                 if (event != undefined && typeof event == "function") {
                     event();
                 }
@@ -120,7 +122,7 @@
 
             return this;
         },
-        
+
         getHelpers: function () {
             return {
                 displaySize: function (bytes) {
@@ -134,20 +136,20 @@
                 }
             }
         },
-        
+
         renderTo: function (container, event) {
             if (Backbone.TemplateManager.currentViews[container]){
                 Backbone.TemplateManager.currentViews[container].close();
             }
-            
+
             Backbone.TemplateManager.currentViews[container] = this;
             this.isLoaded(false);
-            
+
             $(container).html(this.deferedRender(event).el);
-            
+
             return this;
         },
-        
+
         isLoaded: function (loaded) {
             if (loaded != undefined) {
                 this.loadedCountDown += (loaded ? -1 : 1);
@@ -157,10 +159,10 @@
                     $(this.el).removeClass('loading');
                 }
             }
-            
+
             return this.loadedCountDown == 0;
         },
-        
+
         close: function() {
             if (typeof this.onPreClose == "function") {
                 this.onPreClose();
@@ -172,4 +174,4 @@
             }
         }
     });
-}());
+});
